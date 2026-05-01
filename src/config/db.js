@@ -13,6 +13,10 @@ const poolPromise = new sql.ConnectionPool(config)
     })
     .catch(err => {
         console.log('Connection Failed: ', err);
+    })
+    .catch(err => {
+        console.log('Connection Failed: ', err);
+        throw err;
     });
 
 module.exports = {
