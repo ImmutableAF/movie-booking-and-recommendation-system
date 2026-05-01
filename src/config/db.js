@@ -1,14 +1,8 @@
-const sql = require('mssql');
+const sql = require('mssql/msnodesqlv8');
 require('dotenv').config();
 
 const config = {
-    server: process.env.DB_SERVER,
-    database: process.env.DB_NAME,
-    driver: 'msnodesqlv8',
-    options: {
-        trustedConnection: true,
-        trustServerCertificate: true
-    }
+    connectionString: `Driver={ODBC Driver 17 for SQL Server};Server=${process.env.DB_SERVER};Database=${process.env.DB_NAME};Trusted_Connection=yes;`
 };
 
 const poolPromise = new sql.ConnectionPool(config)
