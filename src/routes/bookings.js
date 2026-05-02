@@ -57,4 +57,53 @@ router.get('/only-screening-1', async (req, res) => {
     }
 });
 
+router.post('/book-seat', async (req, res) => {
+    const { seatId, screeningId, customerId, priceId } = req.body;
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+
+    try {
+        await transaction.begin();
+        const request = new sql.Request(transaction);
+
+        const seatCheck = await request
+            .input('seatId', sql.Int, seatId)
+            .input('screeningId', sql.Int, screeningId)
+            .query(`
+                SELECT * FROM BookingSeats WITH (UPDLOCK, ROWLOCK)
+                WHERE seatID = @seatId AND screeningID = @screeningId
+            `);
+
+        if (seatCheck.recordset.length > 0) {
+            await transaction.rollback();
+            return res.status(409).json({ error: 'Seat already booked' });
+        }
+
+        const booking = await request
+            .input('customerId', sql.Int, customerId)
+            .input('priceId', sql.Int, priceId)
+            .query(`
+                INSERT INTO Bookings (total, customerID, screeningID, priceID)
+                VALUES ((SELECT basePrice FROM TicketPrices WHERE id = @priceId), @customerId, @screeningId, @priceId);
+                SELECT SCOPE_IDENTITY() AS bookingId;
+            `);
+
+        const bookingId = booking.recordset[0].bookingId;
+
+        await request
+            .input('bookingId', sql.Int, bookingId)
+            .query(`
+                INSERT INTO BookingSeats (bookingID, seatID, screeningID)
+                VALUES (@bookingId, @seatId, @screeningId)
+            `);
+
+        await transaction.commit();
+        res.json({ message: 'Seat booked successfully!' });
+
+    } catch (err) {
+        await transaction.rollback();
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;
