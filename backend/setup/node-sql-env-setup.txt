@@ -1,0 +1,7 @@
+# in your project dir terminal
+
+npm init -y
+
+npm install express mssql dotenv cors zod
+
+npm install --save-dev nodemon

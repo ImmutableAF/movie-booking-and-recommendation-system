@@ -1,7 +1,89 @@
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# Dependencies
+# =========================
 node_modules/
+.pnp/
+.pnp.js
+
+# =========================
+# Build Output
+# =========================
+dist/
+build/
+out/
+target/
+bin/
+obj/
+
+# =========================
+# Environment Variables
+# =========================
 .env
-client/node_modules/
-client/dist/
-.postman/
-*.postman_collection.json
-*.postman_environment.json
+.env.*
+!.env.example
+
+# =========================
+# IDEs
+# =========================
+.vscode/
+.idea/
+*.iml
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# =========================
+# Java / Spring Boot
+# =========================
+*.class
+*.jar
+*.war
+*.ear
+spring.log
+
+# Maven / Gradle
+.mvn/
+.gradle/
+build/
+
+# =========================
+# Docker
+# =========================
+.docker/
+docker-compose.override.yml
+
+# =========================
+# Coverage / Testing
+# =========================
+coverage/
+*.lcov
+.nyc_output/
+
+# =========================
+# Misc
+# =========================
+*.swp
+*.swo

@@ -1,0 +1,70 @@
+movie-booking-and-recommendation-system
+├── backend
+│   ├── config
+│   │   └── db.js
+│   ├── controllers
+│   │   ├── BookingController.js
+│   │   ├── CustomerController.js
+│   │   ├── MovieController.js
+│   │   └── TheatreController.js
+│   ├── middlewares
+│   │   ├── errorHandler.js
+│   │   └── validateRequest.js
+│   ├── repositories
+│   │   ├── BookingRepository.js
+│   │   ├── CustomerRepository.js
+│   │   ├── MovieRepository.js
+│   │   └── TheatreRepository.js
+│   ├── routes
+│   │   ├── bookingRoutes.js
+│   │   ├── customerRoutes.js
+│   │   ├── index.js
+│   │   ├── movieRoutes.js
+│   │   └── theatreRoutes.js
+│   ├── schemas
+│   │   └── bookingSchema.js
+│   ├── setup
+│   │   ├── node-setup.txt
+│   │   └── node-sql-env-setup.txt
+│   ├── .env
+│   ├── .gitignore
+│   ├── app.js
+│   ├── package-lock.json
+│   └── package.json
+├── db
+│   ├── bulk-population.sql
+│   ├── objects.sql
+│   ├── population.sql
+│   ├── schema.sql
+│   └── testing.sql
+├── frontend
+│   ├── public
+│   │   ├── favicon.svg
+│   │   └── icons.svg
+│   ├── src
+│   │   ├── assets
+│   │   │   ├── hero.png
+│   │   │   ├── react.svg
+│   │   │   └── vite.svg
+│   │   ├── pages
+│   │   │   ├── bookings.jsx
+│   │   │   ├── customers.jsx
+│   │   │   ├── home.jsx
+│   │   │   ├── movies.jsx
+│   │   │   └── theatres.jsx
+│   │   ├── services
+│   │   │   └── api.js
+│   │   ├── App.css
+│   │   ├── App.jsx
+│   │   ├── index.css
+│   │   └── main.jsx
+│   ├── .gitignore
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── README.md
+│   └── vite.config.js
+├── ${project}-tree.txt
+├── documentation.docx
+└── documentation.pdf

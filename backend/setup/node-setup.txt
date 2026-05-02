@@ -1,0 +1,10 @@
+# in a adminstrator privilaged powershell
+
+Set-ExecutionPolicy Bypass -Scope Process -Force
+irm https://community.chocolatey.org/install.ps1 | iex
+
+choco -v
+
+choco install nodejs --version=24.15.0 -y
+
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
