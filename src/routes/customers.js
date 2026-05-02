@@ -3,18 +3,20 @@ const router = express.Router();
 const { sql, poolPromise } = require('../config/db');
 
 router.delete('/:id', async (req, res) => {
-    try{
-        const { id } = req.params;
+    const { id } = req.params;
+    try {
         const pool = await poolPromise;
-        await pool.request()
+        const result = await pool.request()
             .input('id', sql.Int, id)
             .query('DELETE FROM Customers WHERE id = @id');
-        res.json({ message: 'Customer deleted successfully' });
+        if (result.rowsAffected[0] === 0) {
+            res.status(404).json({ error: 'Customer not found' });
+        } else {
+            res.json({ message: 'Customer deleted successfully' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    catch(err){
-        res.status(500).json({error: err.message});
-    }
-
 });
 
 router.get('/search', async (req, res) => {

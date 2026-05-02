@@ -11,7 +11,7 @@ function App() {
   return (
     <BrowserRouter>
       <nav>
-        <h1>Cine<span>Pulse</span></h1>
+        <h1>CinePulse</h1>
         <Link to="/">Home</Link>
         <Link to="/movies">Movies</Link>
         <Link to="/bookings">Bookings</Link>

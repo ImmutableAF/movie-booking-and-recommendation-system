@@ -2,6 +2,16 @@ const express = require('express');
 const router = express.Router();
 const { sql, poolPromise } = require('../config/db');
 
+router.get('/', async (req, res) => {
+    try {
+        const pool = await poolPromise;
+        const result = await pool.request().query('SELECT * FROM Theatres');
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.post('/', async (req, res) => {
     try{
         const { location } = req.body;
@@ -18,20 +28,22 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-    try{
-        const { id } = req.params;
-        const { location } = req.body;
+    const { id } = req.params;
+    const { location } = req.body;
+    try {
         const pool = await poolPromise;
-        await pool.request()
+        const result = await pool.request()
             .input('id', sql.Int, id)
             .input('location', sql.NVarChar, location)
             .query('UPDATE Theatres SET location = @location WHERE id = @id');
-        res.json({ message: 'Theatre updated successfully' });
+        if (result.rowsAffected[0] === 0) {
+            res.status(404).json({ error: 'Theatre not found' });
+        } else {
+            res.json({ message: 'Theatre updated successfully' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    catch(err){
-        res.status(500).json({error: err.message});
-    }
-
 });
 
 router.get('/with-screens', async (req, res) => {
