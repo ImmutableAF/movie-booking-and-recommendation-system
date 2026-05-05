@@ -1,10 +1,9 @@
 USE TestDB;
 GO
 
--- 3. VIEW: Live Occupancy
 CREATE VIEW vw_ScreeningOccupancy AS
-SELECT 
-    s.id AS ScreeningID, m.name AS Movie, t.location AS Theatre, sc.screenName, 
+SELECT
+    s.id AS ScreeningID, m.name AS Movie, t.location AS Theatre, sc.screenName,
     s.startTime, sc.seatCap AS Capacity,
     COUNT(bs.seatID) AS BookedSeats,
     (sc.seatCap - COUNT(bs.seatID)) AS AvailableSeats,
@@ -17,9 +16,8 @@ LEFT JOIN BookingSeats bs ON s.id = bs.screeningID
 GROUP BY s.id, m.name, t.location, sc.screenName, s.startTime, sc.seatCap;
 GO
 
--- 4. VIEW: Global Revenue
 CREATE VIEW vw_GlobalRevenue AS
-SELECT 
+SELECT
     m.name AS MovieName, t.location AS TheatreLocation,
     COUNT(DISTINCT b.id) AS TotalTransactions, SUM(b.total) AS GrossRevenue
 FROM Bookings b
@@ -30,52 +28,71 @@ JOIN Theatres t ON sc.theatreID = t.id
 GROUP BY m.name, t.location;
 GO
 
--- 5. PROCEDURE: Secure Seat Booking
-CREATE PROCEDURE sp_ProcessBooking
+CREATE OR ALTER PROCEDURE sp_ProcessBooking
     @CustomerID INT,
     @ScreeningID INT,
-    @SeatID INT 
+    @SeatID INT
 AS
 BEGIN
     SET NOCOUNT ON;
+
     BEGIN TRY
         BEGIN TRANSACTION;
-        IF EXISTS (SELECT 1 FROM BookingSeats WHERE screeningID = @ScreeningID AND seatID = @SeatID)
+
+        IF EXISTS (
+            SELECT 1
+            FROM BookingSeats WITH (UPDLOCK, HOLDLOCK)
+            WHERE screeningID = @ScreeningID AND seatID = @SeatID
+        )
+        BEGIN
             THROW 50001, 'Seat is already booked for this screening.', 1;
+        END
 
         DECLARE @PriceID INT, @Price DECIMAL(8,2);
+
         SELECT @PriceID = tp.id, @Price = tp.basePrice
         FROM TicketPrices tp
         JOIN Screenings s ON tp.movieID = s.movieID AND tp.screenID = s.screenID
         WHERE s.id = @ScreeningID;
 
+        IF @PriceID IS NULL
+        BEGIN
+            THROW 50002, 'Invalid ScreeningID or missing ticket price configuration.', 1;
+        END
+
         DECLARE @NewBookingID INT;
+
         INSERT INTO Bookings (total, customerID, screeningID, priceID)
         VALUES (@Price, @CustomerID, @ScreeningID, @PriceID);
+
         SET @NewBookingID = SCOPE_IDENTITY();
 
         INSERT INTO BookingSeats (bookingID, seatID, screeningID)
         VALUES (@NewBookingID, @SeatID, @ScreeningID);
 
         COMMIT TRANSACTION;
+
         SELECT @NewBookingID AS SuccessBookingID;
+
     END TRY
     BEGIN CATCH
-        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH
 END;
 GO
 
--- 6. PROCEDURE: Cancel Booking
-CREATE PROCEDURE sp_CancelBooking @BookingID INT
+CREATE OR ALTER PROCEDURE dbo.CancelBooking
+    @BookingID INT
 AS
 BEGIN
     SET NOCOUNT ON;
     BEGIN TRY
-        BEGIN TRANSACTION;
-        DELETE FROM Bookings WHERE id = @BookingID;
-        COMMIT TRANSACTION;
+        DELETE FROM dbo.Bookings WHERE id = @BookingID;
+
+        IF @@ROWCOUNT = 0
+            THROW 50001, 'Booking ID not found or already deleted.', 1;
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
@@ -84,10 +101,9 @@ BEGIN
 END;
 GO
 
--- 7. VIEW: Top Customers
 CREATE VIEW vw_TopCustomers AS
 WITH CustomerTheatreSpends AS (
-    SELECT 
+    SELECT
         c.id, c.name, t.location, SUM(b.total) as TotalSpent,
         RANK() OVER(PARTITION BY t.location ORDER BY SUM(b.total) DESC) as Rank
     FROM Customers c
@@ -100,7 +116,6 @@ WITH CustomerTheatreSpends AS (
 SELECT name, location, TotalSpent FROM CustomerTheatreSpends WHERE Rank = 1;
 GO
 
--- 8. PROCEDURE: Available Seats
 CREATE PROCEDURE sp_GetAvailableSeats @ScreeningID INT
 AS
 BEGIN
@@ -109,13 +124,12 @@ BEGIN
     JOIN Screenings scr ON s.screenID = scr.screenID
     WHERE scr.id = @ScreeningID
     AND NOT EXISTS (
-        SELECT 1 FROM BookingSeats bs 
+        SELECT 1 FROM BookingSeats bs
         WHERE bs.screeningID = @ScreeningID AND bs.seatID = s.id
     );
 END;
 GO
 
--- 9. VIEW: High Demand Screenings
 CREATE VIEW vw_HighDemandScreenings AS
 SELECT screeningID, COUNT(seatID) AS SeatsSold
 FROM BookingSeats
@@ -127,9 +141,8 @@ HAVING COUNT(seatID) > (
 );
 GO
 
--- 10. VIEW: Revenue by Screen Type
 CREATE VIEW vw_RevenueByScreenType AS
-SELECT 
+SELECT
     ISNULL(st.typeName, 'GRAND TOTAL') AS ScreenType, SUM(b.total) AS Revenue
 FROM Bookings b
 JOIN Screenings s ON b.screeningID = s.id
@@ -138,11 +151,10 @@ JOIN ScreenTypes st ON sc.typeID = st.id
 GROUP BY ROLLUP(st.typeName);
 GO
 
--- 11. PROCEDURE: Customer History
 CREATE PROCEDURE sp_GetCustomerHistory @CustomerID INT
 AS
 BEGIN
-    SELECT 
+    SELECT
         b.id AS BookingRef, m.name AS Movie, s.startTime, t.location, bs.seatID, b.total
     FROM Bookings b
     JOIN Screenings s ON b.screeningID = s.id
@@ -154,19 +166,25 @@ BEGIN
 END;
 GO
 
--- 12. FUNCTION: Surge Pricing
-CREATE FUNCTION fn_CalculateSurgePrice (@BasePrice DECIMAL(8,2), @ScreeningDate DATETIME2)
-RETURNS DECIMAL(8,2)
+CREATE OR ALTER FUNCTION dbo.fn_CalculateSurgePrice (
+    @BasePrice DECIMAL(8,2),
+    @ScreeningDate DATETIME2
+)
+RETURNS TABLE
+WITH SCHEMABINDING
 AS
-BEGIN
-    DECLARE @FinalPrice DECIMAL(8,2) = @BasePrice;
-    IF DATEPART(dw, @ScreeningDate) IN (1, 7)
-        SET @FinalPrice = @BasePrice * 1.20;
-    RETURN @FinalPrice;
-END;
+RETURN (
+    SELECT
+        FinalPrice = CAST(
+            CASE
+                WHEN (DATEPART(dw, @ScreeningDate) + @@DATEFIRST - 1) % 7 IN (0, 6)
+                THEN @BasePrice * 1.20
+                ELSE @BasePrice
+            END
+        AS DECIMAL(8,2))
+);
 GO
 
--- 13. VIEW: Orphan Screenings
 CREATE VIEW vw_OrphanScreenings AS
 SELECT m.name, s.startTime, sc.screenName
 FROM Screenings s
@@ -176,7 +194,6 @@ LEFT JOIN Bookings b ON s.id = b.screeningID
 WHERE b.id IS NULL AND s.startTime > GETDATE();
 GO
 
--- 14. VIEW: Corporate Customers
 CREATE VIEW vw_CorporateCustomers AS
 SELECT DISTINCT c1.name AS Cust1, c2.name AS Cust2, SUBSTRING(c1.email, CHARINDEX('@', c1.email), LEN(c1.email)) AS Domain
 FROM Customers c1
@@ -184,7 +201,6 @@ JOIN Customers c2 ON SUBSTRING(c1.email, CHARINDEX('@', c1.email), LEN(c1.email)
 WHERE c1.id < c2.id;
 GO
 
--- 15. PROCEDURE: Initialize Screen Seats
 CREATE PROCEDURE sp_InitializeScreenSeats
     @ScreenID INT, @Rows INT, @SeatsPerRow INT
 AS
@@ -195,7 +211,7 @@ BEGIN
     BEGIN
         DECLARE @RowLabel NVARCHAR(3) = CHAR(64 + @CurrentRow);
         INSERT INTO SeatRows (screenID, rowLabel) VALUES (@ScreenID, @RowLabel);
-        
+
         DECLARE @CurrentSeat INT = 1;
         WHILE @CurrentSeat <= @SeatsPerRow
         BEGIN

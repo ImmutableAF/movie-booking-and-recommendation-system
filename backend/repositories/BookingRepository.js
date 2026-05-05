@@ -13,10 +13,21 @@ class BookingRepository {
 
     static async cancelBooking(bookingId) {
         const pool = await poolPromise;
-        await pool.request()
-            .input('BookingID', sql.Int, bookingId)
-            .execute('sp_CancelBooking');
-        return true;
+        try {
+            await pool.request()
+                .input('BookingID', sql.Int, bookingId)
+                .execute('dbo.CancelBooking');
+
+            return { message: "Booking deleted successfully." };
+        } catch (error) {
+            if (error.number === 50001) {
+                const err = new Error("Booking already deleted or does not exist.");
+                err.statusCode = 404;
+                throw err;
+            }
+            console.error(`[DB_EXEC_ERROR]`, error);
+            throw new Error("An unexpected system error occurred.");
+        }
     }
 }
 
